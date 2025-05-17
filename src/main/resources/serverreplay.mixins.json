@@ -24,6 +24,7 @@
     "compat.servux.ServuxPacketMixin",
     "compat.syncmatica.SyncmaticaPacketPayloadMixin",
     "compat.vmp.NearbyEntityTrackingMixin",
+    "compat.replayinventoryplugin.inventoryPluginMixin",
     "flashback.BlockEntityInfoAccessor",
     "flashback.ClientboundLevelChunkPacketDataAccessor",
     "network.IdDispatchCodecAccessor",
