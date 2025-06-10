@@ -18,6 +18,7 @@ import me.senseiwells.replay.recorder.player.PlayerRecorders
 import me.senseiwells.replay.util.FileUtils.streamDirectoryEntriesOrEmpty
 import me.senseiwells.replay.util.ReplayModIO
 import me.senseiwells.replay.util.flashback.FlashbackIO
+import me.senseiwells.replay.util.flashback.FlashbackZipMerger
 import me.senseiwells.replay.viewer.ReplayViewers
 import me.senseiwells.replay.writer.ReplayWriterType
 import net.minecraft.ChatFormatting
@@ -200,8 +201,13 @@ object ReplayCommand {
                         Commands.literal("replay-mod").executes { this.changeEncoding(it, ReplayWriterType.ReplayMod) }
                     )
                 )
+            ).then(
+                Commands.literal("merge").then(
+                    Commands.argument("filename", StringArgumentType.string()).executes(this::mergeReplayFile)
+                )
             )
         )
+
     }
 
     private fun onEnable(context: CommandContext<CommandSourceStack>): Int {
@@ -609,5 +615,40 @@ object ReplayCommand {
 
     private fun isReplayFile(path: Path): Boolean {
         return !path.isDirectory() && (ReplayModIO.isReplayFile(path) || FlashbackIO.isFlashbackFile(path))
+    }
+
+    private fun mergeReplayFile(context: CommandContext<CommandSourceStack>): Int {
+        val filePath = StringArgumentType.getString(context, "filename")
+        val replayFile = Path.of(filePath)
+
+        if (!replayFile.exists()) {
+            context.source.sendFailure(Component.literal("录像文件不存在: $filePath"))
+            return 0
+        }
+
+        context.source.sendSuccess({ Component.literal("开始合并录像文件...") }, false)
+
+        // 异步执行合并操作
+        CompletableFuture.runAsync {
+            try {
+                val registryAccess = context.source.server.registryAccess()
+                val merger = FlashbackZipMerger(registryAccess)
+                val outputPath = merger.mergeZipFile(replayFile)
+
+                context.source.server.execute {
+                    context.source.sendSuccess(
+                        { Component.literal("录像合并完成: ${outputPath.fileName}") },
+                        true
+                    )
+                }
+            } catch (e: Exception) {
+                context.source.server.execute {
+                    context.source.sendFailure(Component.literal("合并失败: ${e.message}"))
+                }
+                e.printStackTrace()
+            }
+        }
+
+        return 1
     }
 }
